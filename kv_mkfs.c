@@ -13,7 +13,7 @@
 KV_super_block sb =
 {
 	.s_magic = KV_FS_MAGIC,
-	.block_size = KV_FS_BLOCK_SIZE,
+	.s_block_size = KV_FS_BLOCK_SIZE,
 	.inode_size = KV_FS_INODE_SIZE,
 	.inode_table_block_start = KV_INODE_TABLE_BLOCK_START
 };
@@ -40,7 +40,7 @@ void mark_data_blocks(int fd, KV_super_block *sb)
 {
 	char c = 0;
 
-	lseek(fd, sb->partition_size * sb->block_size - 1, SEEK_SET);
+	lseek(fd, sb->partition_size * sb->s_block_size - 1, SEEK_SET);
     // SEEK_SET은 fd의 처음을 기준으로 offset을 계산한다.
     // 파일을 mkfs를 실행하는 시점에 만드는 것처럼 partition을 만드는 것 또한, mkfs 시점에 해둔다.
     // partition 개수 만큼의 block을 file로 할당하고 마지막에 0을 써놔서 partition의 끝을 표시해둔다.
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 	sb.inode_table_size = sb.partition_size * KV_INODE_RATIO;
     // file 앞쪽의 이만큼을 inode table로 할당한다.
     // file의 크기에 비례하게 inode table을 할당한다.
-	sb.inode_count = sb.inode_table_size * sb.block_size / sb.inode_size;
+	sb.inode_count = sb.inode_table_size * sb.s_block_size / sb.inode_size;
 	sb.data_block_start = KV_INODE_TABLE_BLOCK_START + sb.inode_table_size;
 
 	fd = creat(KV_DEFAULT_FILE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
