@@ -29,19 +29,29 @@ struct file_system_type kvfs_type = {
 };
 
 const struct super_operations kv_sb_ops = {
+	// 우선 이해한 바로는 inode를 할당을 해두고 create 함수에서는 이에 대한 내용을 채우는 것 같다.
+	// -> 다시 봐야할 것 같다.
+
+	// 원 linux fs들에서 함수들은 void(*destroy_inode)(struct inode *) 이런식으로 선언이 되어있다.
 	// mount할 때에 fill_super가 불리고 거기서 이 s_op들을 등록
 
 	// inode를 할당 받거나 읽는 함수들도 있어야 하지 않을까
 	// -> ex> from fs/proc/inode.c
 	// .alloc_inode	= proc_alloc_inode,
 
+	// 짜보면
+	// .alloc_inode = kv_alloc_inode,
+	// 이런식으로 하면 될 것이다.
+	// -> 지금은 create에서 시작해 create 될 때 inode가 생성되는 식으로 되어있다.
+
 	.destroy_inode = kv_destroy_inode,
+
 	// .put_super = kvfs_put_super,
 	// 해당 함수의 필요성을 모르겠다.
 };
 
 const struct inode_operations kv_inode_ops = {
-	// file을 만들거나 지우거나 dir을 만들거나 등의 file system이 제공하는 op
+	// file을 만들거나 dir을 만들거나 등의 file system이 제공하는 op
 	.create = kv_create,
 	.mkdir = kv_mkdir,
 	.lookup = kv_lookup,

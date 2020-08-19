@@ -13,8 +13,10 @@ _ix < KV_INODE_TSIZE;							\
 
 void kv_destroy_inode(struct inode *inode) {
 	struct kv_inode *kvi = inode->i_private;
-    // 해당 inode를 가지고 와서 초기화된 inode로 바꾸어주는 것 같다.
+    // 해당 inode를 가지고 와서 초기화된 inode로 바꾸어주는 것 같다.?
     // -> i_private에 대해 다시 알아볼 것
+	// -> i_private는 fs or device private pointer (아직 잘 모르겠다)
+	// inode 1개를 destory하는 게 아니고 kmem_cache에 저장되어있는 객체를 초기화시키는 것 같기도 하다.
 
 	printk(KERN_INFO "#: kvfs freeing private data of inode %p (%lu)\n", kvi, inode->i_ino);
 	cache_put_inode(&kvi);
@@ -23,11 +25,17 @@ void kv_destroy_inode(struct inode *inode) {
 void cache_put_inode(struct kv_inode **kvi)
 {
     // put indoe가 kmem_cache를 free하는건가?
-	printk(KERN_INFO "#: kvfs cache_put_inode : di=%p\n", *kvi);
+	printk(KERN_INFO "#: kvfs cache_put_inode : kvi=%p\n", *kvi);
 	kmem_cache_free(kv_inode_cache, *kvi);
+	// slub cache를 통해 allocate 했던 obj를 free하는 함수
 	*kvi = NULL;
 }
 
+int kv_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
+{
+	// inode를 만든다.
+	return kv_create_inode(dir, dentry, mode);
+}
 
 
 
@@ -192,11 +200,6 @@ int kv_add_ondir(struct inode *inode, struct inode *dir, struct dentry *dentry,
 	d_add(dentry, inode);
 
 	return 0;
-}
-
-int kv_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
-{
-	return kv_create_inode(dir, dentry, mode);
 }
 
 int kv_create_inode(struct inode *dir, struct dentry *dentry, umode_t mode)
