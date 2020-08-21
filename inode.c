@@ -13,7 +13,7 @@ _ix < KV_INODE_TSIZE;							\
 
 void kv_destroy_inode(struct inode *inode) {
 	struct kv_inode *kvi = inode->i_private;
-    // 해당 inode를 가지고 와서 초기화된 inode로 바꾸어주는 것 같다.?
+    // 해당 inode를 가지고 와서 초기화된 inode로 바꾸어주는 것 같다.? x
     // -> i_private에 대해 다시 알아볼 것
 	// -> i_private는 fs or device private pointer (아직 잘 모르겠다)
 	// inode 1개를 destory하는 게 아니고 kmem_cache에 저장되어있는 객체를 초기화시키는 것 같기도 하다.
@@ -25,6 +25,7 @@ void kv_destroy_inode(struct inode *inode) {
 void cache_put_inode(struct kv_inode **kvi)
 {
     // put indoe가 kmem_cache를 free하는건가?
+	// indicate that an inode is no longer needed in memory (공식 설명 (put_inode))
 	printk(KERN_INFO "#: kvfs cache_put_inode : kvi=%p\n", *kvi);
 	kmem_cache_free(kv_inode_cache, *kvi);
 	// slub cache를 통해 allocate 했던 obj를 free하는 함수
@@ -36,6 +37,129 @@ int kv_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 	// inode를 만든다.
 	return kv_create_inode(dir, dentry, mode);
 }
+
+int kv_create_inode(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	// mode는 권한 같은 것을 말한다.
+	struct inode *inode;
+
+	/* allocate space
+	 * create incore inode
+	 * create VFS inode
+	 * finally ad inode to parent dir
+	 */
+	inode = kv_new_inode(dir, dentry, mode);
+	// proc과 같은 fs에서는 new_inode는 그냥 fs의 그것을 사용하긴 한다. (fs/inode.c)
+
+	if (!inode)
+		return -ENOSPC;
+		// 드라이브에 공간이 부족하다는 에러
+
+	/* add new inode to parent dir */
+	return kv_add_ondir(inode, dir, dentry, mode);
+}
+
+struct inode *kv_new_inode(struct inode *dir, struct dentry *dentry, umode_t mode)
+{
+	struct super_block *sb;
+	struct kv_superblock *kvsb;
+	struct kv_inode *kvi;
+	struct inode *inode;
+	int ret;
+
+	sb = dir->i_sb;
+	kvsb = sb->s_fs_info;
+	// s_fs_info는 fs에 대한 정보이다.
+	// -> kvsb와 형식이 같은 것은 아닐텐데
+	// -> 좀 더 알아봐야할 것 같다.
+
+	kvi = cache_get_inode();
+
+	/* allocate space kv way:
+ 	 * sb has last block on it just use it
+ 	 */
+	ret = kv_alloc_inode(sb, kvi);
+	// fs/inode.c의 alloc_inode를 사용하지 않고 여기서 새로 지정한 alloc_inode를 사용하는 모습
+	// -> kv_alloc_inode를 따로 선언하고 여기서는 그렇게 사용하고 alloc_inode에 그 함수를 할당해도 될 것 같기는 하다.(알단 그렇게 해둠)
+	// -> 다만 always 함수 안의 내용을 어느정도 여기서 담고 있으니 그 부분에 대해 처리해줘야 할 것이다.
+	// 원본 alloc_inode는 인자로 sb만 받는다.
+
+	// 일단 이거 하던 중!
+
+	if (ret) {
+		cache_put_inode(&kvi);
+		printk(KERN_ERR "Unable to allocate disk space for inode");
+		return NULL;
+	}
+	kvi->i_mode = mode;
+
+	BUG_ON(!S_ISREG(mode) && !S_ISDIR(mode));
+
+	/* Create VFS inode */
+	inode = new_inode(sb);
+
+	kv_fill_inode(sb, inode, kvi);
+
+	/* Add new inode to parent dir */
+	ret = kv_add_dir_record(sb, dir, dentry, inode);
+
+	return inode;
+}
+
+struct kv_inode *cache_get_inode(void)
+{
+	// kv_inode를 하나 할당 받는다.
+	struct kv_inode *kvi;
+
+	kvi = kmem_cache_alloc(kv_inode_cache, GFP_KERNEL);
+	printk(KERN_INFO "#: kvfs cache_get_inode : di=%p\n", di);
+
+	return kvi;
+}
+
+int kv_alloc_inode(struct super_block *sb, struct kv_inode *kvi)
+// 원래의 alloc_inode에서는 각 sb에서 정의한 alloc_inode를 부른다.
+// proc의 경우 alloc_inode에서 cache_get_inode에서 하는 kmem_cache_alloc을 실행하고 proc_inode를 채운다.
+// -> 여기서는 kv_iget에서도 kmem_cache_alloc을 사용하기 때문에 일단 분리해 두엇다. (생각을 해볼 문제이다)
+{
+	struct kv_superblock *kvsb;
+	int i;
+	// u32로 선언되어 있었는데 이는 상관없을 것 같기는 하다.
+
+	kvsb = sb->s_fs_info;
+	kvsb->s_inode_cnt += 1;
+	kvi->i_ino = kvsb->s_inode_cnt;
+	kvi->i_version = KV_LAYOUT_VER;
+	kvi->i_flags = 0;
+	kvi->i_mode = 0;
+	kvi->i_size = 0;
+
+	/* TODO: check if there is any space left on the device */
+	/* First block is allocated for in-core inode struct */
+	/* Then 4 block for extends: that mean kvi struct is in i_addrb[0]-1 */
+	kvi->i_addrb[0] = kvsb->s_last_blk + 1;
+	kvi->i_addre[0] = kvsb->s_last_blk += 4;
+	for (i = 1; i < KV_INODE_TSIZE; ++i) {
+		kvi->i_addre[i] = 0;
+		kvi->i_addrb[i] = 0;
+	}
+
+	kv_store_inode(sb, kvi);
+	isave_intable(sb, kvi, (kvi->i_addrb[0] - 1));
+	/* TODO: update inode block bitmap */
+
+	return 0;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -51,16 +175,6 @@ void dump_kvinode(struct kv_inode *kvi)
 	printk(KERN_INFO "kv_inode->i_addrb[0]: %u", kvi->i_addrb[0]);
 	printk(KERN_INFO "kv_inode->i_addre[0]: %u", kvi->i_addre[0]);
 	printk(KERN_INFO "----------[end of dump]-------------");
-}
-
-struct kv_inode *cache_get_inode(void)
-{
-	struct kv_inode *di;
-
-	di = kmem_cache_alloc(kv_inode_cache, GFP_KERNEL);
-	printk(KERN_INFO "#: kvfs cache_get_inode : di=%p\n", di);
-
-	return di;
 }
 
 void kv_store_inode(struct super_block *sb, struct kv_inode *kvi)
@@ -124,75 +238,6 @@ int kv_add_dir_record(struct super_block *sb, struct inode *dir,
 	return -ENOSPC;
 }
 
-int alloc_inode(struct super_block *sb, struct kv_inode *kvi)
-{
-	struct kv_superblock *dsb;
-	u32 i;
-
-	dsb = sb->s_fs_info;
-	dsb->s_inode_cnt += 1;
-	kvi->i_ino = dsb->s_inode_cnt;
-	kvi->i_version = KV_LAYOUT_VER;
-	kvi->i_flags = 0;
-	kvi->i_mode = 0;
-	kvi->i_size = 0;
-
-	/* TODO: check if there is any space left on the device */
-	/* First block is allocated for in-core inode struct */
-	/* Then 4 block for extends: that mean kvi struct is in i_addrb[0]-1 */
-	kvi->i_addrb[0] = dsb->s_last_blk + 1;
-	kvi->i_addre[0] = dsb->s_last_blk += 4;
-	for (i = 1; i < KV_INODE_TSIZE; ++i) {
-		kvi->i_addre[i] = 0;
-		kvi->i_addrb[i] = 0;
-	}
-
-	kv_store_inode(sb, kvi);
-	isave_intable(sb, kvi, (kvi->i_addrb[0] - 1));
-	/* TODO: update inode block bitmap */
-
-	return 0;
-}
-
-struct inode *kv_new_inode(struct inode *dir, struct dentry *dentry,
-				umode_t mode)
-{
-	struct super_block *sb;
-	struct kv_superblock *dsb;
-	struct kv_inode *di;
-	struct inode *inode;
-	int ret;
-
-	sb = dir->i_sb;
-	dsb = sb->s_fs_info;
-
-	di = cache_get_inode();
-
-	/* allocate space kv way:
- 	 * sb has last block on it just use it
- 	 */
-	ret = alloc_inode(sb, di);
-
-	if (ret) {
-		cache_put_inode(&di);
-		printk(KERN_ERR "Unable to allocate disk space for inode");
-		return NULL;
-	}
-	di->i_mode = mode;
-
-	BUG_ON(!S_ISREG(mode) && !S_ISDIR(mode));
-
-	/* Create VFS inode */
-	inode = new_inode(sb);
-
-	kv_fill_inode(sb, inode, di);
-
-	/* Add new inode to parent dir */
-	ret = kv_add_dir_record(sb, dir, dentry, inode);
-
-	return inode;
-}
-
 int kv_add_ondir(struct inode *inode, struct inode *dir, struct dentry *dentry,
 			umode_t mode)
 {
@@ -200,24 +245,6 @@ int kv_add_ondir(struct inode *inode, struct inode *dir, struct dentry *dentry,
 	d_add(dentry, inode);
 
 	return 0;
-}
-
-int kv_create_inode(struct inode *dir, struct dentry *dentry, umode_t mode)
-{
-	struct inode *inode;
-
-	/* allocate space
-	 * create incore inode
-	 * create VFS inode
-	 * finally ad inode to parent dir
-	 */
-	inode = kv_new_inode(dir, dentry, mode);
-
-	if (!inode)
-		return -ENOSPC;
-
-	/* add new inode to parent dir */
-	return kv_add_ondir(inode, dir, dentry, mode);
 }
 
 int kv_mkdir(struct inode *dir, struct dentry *dentry,

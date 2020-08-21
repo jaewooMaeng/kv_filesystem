@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/version.h>
- 
+
 #include "hkv.h"
 
 MODULE_LICENSE("GPL");
@@ -22,6 +22,7 @@ struct file_system_type kvfs_type = {
 	.owner = THIS_MODULE,
 	.name = "kvfs",
 	.mount = kvfs_mount,
+	// kerenl 2.6.38 잏로 read_super(get_sb)를 mount가 대신한다.
 	.kill_sb = kvfs_kill_superblock,
     // 이걸 read_super 대용으로 사용하는 것인가?
 	.fs_flags = FS_REQUIRES_DEV
@@ -29,8 +30,10 @@ struct file_system_type kvfs_type = {
 };
 
 const struct super_operations kv_sb_ops = {
-	// 우선 이해한 바로는 inode를 할당을 해두고 create 함수에서는 이에 대한 내용을 채우는 것 같다.
+	// 우선 이해한 바로는 inode를 할당을 해두고 create 함수에서는 이에 대한 내용을 채우는 것 같다. x
 	// -> 다시 봐야할 것 같다.
+	// -> alloc의 경우 memory에 cache 형태로 inode를 올리는 것이고 create는 실제로 inode를 만드는 작업
+	// -> alloc이 꼭 필요한 것은 아닐 수 있다.
 
 	// 원 linux fs들에서 함수들은 void(*destroy_inode)(struct inode *) 이런식으로 선언이 되어있다.
 	// mount할 때에 fill_super가 불리고 거기서 이 s_op들을 등록
@@ -45,6 +48,7 @@ const struct super_operations kv_sb_ops = {
 	// -> 지금은 create에서 시작해 create 될 때 inode가 생성되는 식으로 되어있다.
 
 	.destroy_inode = kv_destroy_inode,
+	// alloc이 없기 때문에 destroy도 굳이 필요한지 모르겠다.
 
 	// .put_super = kvfs_put_super,
 	// 해당 함수의 필요성을 모르겠다.
@@ -53,6 +57,7 @@ const struct super_operations kv_sb_ops = {
 const struct inode_operations kv_inode_ops = {
 	// file을 만들거나 dir을 만들거나 등의 file system이 제공하는 op
 	.create = kv_create,
+	// kv_create -> kv_create_inode -> kv_new_inode -> alloc_inode/kv_fill_inode -> kv_add_ondir
 	.mkdir = kv_mkdir,
 	.lookup = kv_lookup,
 };
@@ -86,6 +91,7 @@ static int __init kv_init(void)
 					(SLAB_RECLAIM_ACCOUNT| SLAB_MEM_SPREAD),
 					NULL);
 	// 꼭 kmem_cache를 사용해야 하는지는 잘 모르겠다 -> 성능은 좋아질 것 같다.
+	// -> 필요할 것 같다.
 
 	if (!kv_inode_cache)
 		return -ENOMEM;
