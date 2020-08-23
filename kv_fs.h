@@ -53,6 +53,8 @@ struct kv_superblock {
 	unsigned int	s_block_olt;	/* Object location table block */
 	unsigned int	s_inode_cnt;	/* number of inodes in inode table */
 	unsigned int	s_last_blk;	/* just move forward with allocation */
+	// 이 extend하는 방식을 사용할지 변경할지는 고민이 필요할 것 같다.
+	// list를 주고 연결하는 방식이 더 일반적인 것 같다.
 };
 
 /**

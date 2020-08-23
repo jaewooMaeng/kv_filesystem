@@ -36,6 +36,10 @@ int kv_create(struct inode *dir, struct dentry *dentry, umode_t mode, bool excl)
 {
 	// inode를 만든다.
 	return kv_create_inode(dir, dentry, mode);
+	// kv_create -> kv_create_inode -> kv_new_inode -> alloc_inode/kv_fill_inode -> kv_add_ondir
+	// fs/proc에서 .lookup = proc_map_files_lookup -> proc_map_files_instantiate
+	// -> proc_pid_make_inode(이게 kv_new_inode 에 해당) -> new_inode(이건 fs.h의 그것이며 여기서 alloc_inode -> sop->alloc_inode)
+	// 이런식으로 전개
 }
 
 int kv_create_inode(struct inode *dir, struct dentry *dentry, umode_t mode)
@@ -50,6 +54,8 @@ int kv_create_inode(struct inode *dir, struct dentry *dentry, umode_t mode)
 	 */
 	inode = kv_new_inode(dir, dentry, mode);
 	// proc과 같은 fs에서는 new_inode는 그냥 fs의 그것을 사용하긴 한다. (fs/inode.c)
+	// -> 그 전 단계의 함수에서는 proc_pid_make_inode를 호출하긴 한다.
+	// 여기서는 사실 저 함수 안에서 new_inode를 호출하긴 한다.
 
 	if (!inode)
 		return -ENOSPC;
@@ -72,6 +78,7 @@ struct inode *kv_new_inode(struct inode *dir, struct dentry *dentry, umode_t mod
 	// s_fs_info는 fs에 대한 정보이다.
 	// -> kvsb와 형식이 같은 것은 아닐텐데
 	// -> 좀 더 알아봐야할 것 같다.
+	// -> 어차피 둘 다 주소값이라 해당 file system의 정보를 담고 있는 kv_sb의 주소를 가리키면 적절할 듯하다.
 
 	kvi = cache_get_inode();
 
@@ -84,9 +91,8 @@ struct inode *kv_new_inode(struct inode *dir, struct dentry *dentry, umode_t mod
 	// -> 다만 always 함수 안의 내용을 어느정도 여기서 담고 있으니 그 부분에 대해 처리해줘야 할 것이다.
 	// 원본 alloc_inode는 인자로 sb만 받는다.
 
-	// 일단 이거 하던 중!
-
 	if (ret) {
+		// 정상적인 경우에는 0을 return 받는다.
 		cache_put_inode(&kvi);
 		printk(KERN_ERR "Unable to allocate disk space for inode");
 		return NULL;
@@ -143,14 +149,72 @@ int kv_alloc_inode(struct super_block *sb, struct kv_inode *kvi)
 		kvi->i_addre[i] = 0;
 		kvi->i_addrb[i] = 0;
 	}
+	// i_addrb, i)addre 의 [1], [2]는 값을 줄 필요가 있나?
 
 	kv_store_inode(sb, kvi);
+	// 사실상 깡통 kvi를 우선 여기서 저장시키는 것이다.(?)
 	isave_intable(sb, kvi, (kvi->i_addrb[0] - 1));
 	/* TODO: update inode block bitmap */
 
 	return 0;
 }
 
+void kv_store_inode(struct super_block *sb, struct kv_inode *kvi)
+{
+	// kvi로 인자를 받아 버퍼로 옮겼다가 이를 저장/씀 (write out)
+	struct buffer_head *bh;
+	struct kv_inode *in_core;
+	unsigned int blk = kvi->i_addrb[0] - 1;
+
+	/* put in-core inode */
+	/* Change me: here we just use fact that current allocator is cont.
+	 * With smarter allocator the position should be found from itab
+	 */
+	bh = sb_bread(sb, blk);
+	// sb_bread는 "Read the super block data from the device" 를 수행한다.
+	// -> sb_bread(sb, block_num) 이런식으로 사용
+	BUG_ON(!bh);
+	// 내의 조건이 1이면 버그를 호출한다.
+
+	in_core = (struct kv_inode *)(bh->b_data);
+	memcpy(in_core, kvi, sizeof(*in_core));
+	// destinatio이 in_core, 출발지가 kvi
+	mark_buffer_dirty(bh);
+	sync_dirty_buffer(bh);
+	// write out 실시한다.
+	brelse(bh);
+	// 버퍼를 free한다.
+}
+
+int isave_intable(struct super_block *sb, struct kv_inode *kvi, unsigned int i_block)
+{
+	struct buffer_head *bh;
+	struct kv_inode *itab;
+	int blk = 0;
+	int *ptr;
+
+	/* get inode table 'file' */
+	bh = sb_bread(sb, KV_INODE_TABLE_OFFSET);
+	itab = (struct kv_inode*)(bh->b_data);
+	/* right now we just allocated one itable extend for files */
+	blk = itab->i_addrb[0];
+	bforget(bh);
+	// brelese와 바슷히지만 potentially dirty data를 무시한다.
+
+	bh = sb_bread(sb, blk);
+	/* Get block of ino inode*/
+	ptr = (int *)(bh->b_data);
+	/* inodes starts from index 1: -2 offset */
+	*(ptr + kvi->i_ino - 2) = i_block;
+
+	// 이 -2부분과 bh를 왜 2번 거치는지는 다시 봐야할 듯
+
+	mark_buffer_dirty(bh);
+	sync_dirty_buffer(bh);
+	brelse(bh);
+
+	return 0;
+}
 
 
 
@@ -175,27 +239,6 @@ void dump_kvinode(struct kv_inode *kvi)
 	printk(KERN_INFO "kv_inode->i_addrb[0]: %u", kvi->i_addrb[0]);
 	printk(KERN_INFO "kv_inode->i_addre[0]: %u", kvi->i_addre[0]);
 	printk(KERN_INFO "----------[end of dump]-------------");
-}
-
-void kv_store_inode(struct super_block *sb, struct kv_inode *kvi)
-{
-	struct buffer_head *bh;
-	struct kv_inode *in_core;
-	uint32_t blk = kvi->i_addrb[0] - 1;
-
-	/* put in-core inode */
-	/* Change me: here we just use fact that current allocator is cont.
-	 * With smarter allocator the position should be found from itab
-	 */
-	bh = sb_bread(sb, blk);
-	BUG_ON(!bh);
-
-	in_core = (struct kv_inode *)(bh->b_data);
-	memcpy(in_core, kvi, sizeof(*in_core));
-
-	mark_buffer_dirty(bh);
-	sync_dirty_buffer(bh);
-	brelse(bh);
 }
 
 /* Here introduce allocation for directory... */
@@ -270,33 +313,6 @@ void kv_put_inode(struct inode *inode)
 	struct kv_inode *ip = inode->i_private;
 
 	cache_put_inode(&ip);
-}
-
-int isave_intable(struct super_block *sb, struct kv_inode *kvi, u32 i_block)
-{
-	struct buffer_head *bh;
-	struct kv_inode *itab;
-	u32 blk = 0;
-	u32 *ptr;
-
-	/* get inode table 'file' */
-	bh = sb_bread(sb, KV_INODE_TABLE_OFFSET);
-	itab = (struct kv_inode*)(bh->b_data);
-	/* right now we just allocated one itable extend for files */
-	blk = itab->i_addrb[0];
-	bforget(bh);
-
-	bh = sb_bread(sb, blk);
-	/* Get block of ino inode*/
-	ptr = (u32 *)(bh->b_data);
-	/* inodes starts from index 1: -2 offset */
-	*(ptr + kvi->i_ino - 2) = i_block;
-
-	mark_buffer_dirty(bh);
-	sync_dirty_buffer(bh);
-	brelse(bh);
-
-	return 0;
 }
 
 struct kv_inode *kv_iget(struct super_block *sb, ino_t ino)

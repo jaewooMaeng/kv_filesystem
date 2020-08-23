@@ -30,6 +30,8 @@ struct file_system_type kvfs_type = {
 };
 
 const struct super_operations kv_sb_ops = {
+	// 원래 이런 것도 inode.c에 두고 internal.h에 둔다. -> destroy 같은 함수들을 static으로 선언할 수 있다.
+
 	// 우선 이해한 바로는 inode를 할당을 해두고 create 함수에서는 이에 대한 내용을 채우는 것 같다. x
 	// -> 다시 봐야할 것 같다.
 	// -> alloc의 경우 memory에 cache 형태로 inode를 올리는 것이고 create는 실제로 inode를 만드는 작업
@@ -43,7 +45,7 @@ const struct super_operations kv_sb_ops = {
 	// .alloc_inode	= proc_alloc_inode,
 
 	// 짜보면
-	// .alloc_inode = kv_alloc_inode,
+	.alloc_inode = kv_alloc_inode,
 	// 이런식으로 하면 될 것이다.
 	// -> 지금은 create에서 시작해 create 될 때 inode가 생성되는 식으로 되어있다.
 

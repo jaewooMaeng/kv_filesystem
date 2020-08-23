@@ -31,6 +31,8 @@ int kv_readdir(struct file *filp, struct dir_context *ctx);
 
 /* inode.c */
 int isave_intable(struct super_block *sb, struct kv_inode *kvi, u32 i_block);
+// 추가
+int kv_alloc_inode(struct super_block *sb, struct kv_inode *kvi);
 void kv_destroy_inode(struct inode *inode);
 void kv_fill_inode(struct super_block *sb, struct inode *des, struct kv_inode *src);
 int kv_create_inode(struct inode *dir, struct dentry *dentry, umode_t mode);
