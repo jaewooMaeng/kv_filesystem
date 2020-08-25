@@ -19,6 +19,7 @@
 #define KV_OLT_OFFSET		(KV_SUPER_OFFSET + 1)
 #define KV_INODE_TABLE_OFFSET	(KV_OLT_OFFSET + 1)
 #define KV_INODE_BITMAP_OFFSET	(KV_INODE_TABLE_OFFSET + KV_INODE_TABLE_SIZE + 1)
+// 보통 bitmap이 먼저 오는 경우가 많은데 여기는 순서가 반대인 듯 하다.
 #define KV_ROOT_INODE_OFFSET	(KV_INODE_BITMAP_OFFSET + 1)
 #define KV_ROOT_IN_EXT_OFF	(KV_ROOT_INODE_OFFSET + 1)
 #define KV_LF_INODE_OFFSET	(KV_ROOT_IN_EXT_OFF + KV_DEF_ALLOC)
@@ -30,8 +31,8 @@
 #define KV_INODE_SIZE		512
 #define KV_INODE_NUMBER_TABLE	128
 #define KV_INODE_TABLE_SIZE	(KV_INODE_NUMBER_TABLE * KV_INODE_SIZE)/KV_DEFAULT_BSIZE
-// KV_EMPTY_ENTRY가 뭔지 모르겠다.
-#define KV_EMPTY_ENTRY		0xdeeddeed
+// KV_EMPTY_INODE가 뭔지 모르겠다.
+#define KV_EMPTY_INODE		0xdeeddeed
 
 #define KV_NAME_LEN		255
 #define KV_DEF_ALLOC		4	/* By default alloc N blocks per extend */

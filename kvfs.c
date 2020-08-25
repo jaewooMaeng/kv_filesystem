@@ -45,9 +45,11 @@ const struct super_operations kv_sb_ops = {
 	// .alloc_inode	= proc_alloc_inode,
 
 	// 짜보면
-	.alloc_inode = kv_alloc_inode,
+	// .alloc_inode = kv_alloc_inode,
 	// 이런식으로 하면 될 것이다.
 	// -> 지금은 create에서 시작해 create 될 때 inode가 생성되는 식으로 되어있다.
+	// ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ //
+	// -> 이렇게 되어있는 부분을 수정하면 나중에 사용하게 될 수도 있다.
 
 	.destroy_inode = kv_destroy_inode,
 	// alloc이 없기 때문에 destroy도 굳이 필요한지 모르겠다.
