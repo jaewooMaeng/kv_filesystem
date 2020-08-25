@@ -29,6 +29,7 @@
 /* FS constants */
 #define KV_MAGIC_NR		0x21419651
 #define KV_INODE_SIZE		512
+// BSIZE가 4096인데 INODE_SIZE 512 -> 근데 offset은 왜 blk 단위인가?
 #define KV_INODE_NUMBER_TABLE	128
 #define KV_INODE_TABLE_SIZE	(KV_INODE_NUMBER_TABLE * KV_INODE_SIZE)/KV_DEFAULT_BSIZE
 // KV_EMPTY_INODE가 뭔지 모르겠다.

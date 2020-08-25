@@ -29,29 +29,11 @@ struct dentry *kvfs_mount(struct file_system_type *fs_type, int flags,
 	return ret;
 }
 
-void kvfs_kill_superblock(struct super_block *sb)
-{
-	printk(KERN_INFO "#: kvfs. Unmount succesful.\n");
-	kill_block_super(sb);
-    // generic unmount 함수이다.
-}
-
-void kvfs_save_sb(struct super_block *sb) {
-	struct buffer_head *bh;
-	struct kv_superblock *d_sb = sb->s_fs_info;
-
-	bh = sb_bread(sb, KV_SUPER_OFFSET);
-	BUG_ON(!bh);
-
-	bh->b_data = (char *)d_sb;
-	mark_buffer_dirty(bh);
-	sync_dirty_buffer(bh);
-	brelse(bh);
-}
-
 static int kvfs_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct kv_superblock *d_sb;
+	// super_block을 채우고, root_inode 또한 채워둔다.
+	// data와 silent는 없어도 될 것 같긴 하다.
+	struct kv_superblock *kv_sb;
 	struct buffer_head *bh;
 	struct inode *root_inode;
 	struct kv_inode *root_kvinode, *rbuf;
@@ -59,12 +41,12 @@ static int kvfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	bh = sb_bread(sb, KV_SUPER_OFFSET);
 	BUG_ON(!bh);
-	d_sb = (struct kv_superblock *)bh->b_data;
+	kv_sb = (struct kv_superblock *)bh->b_data;
 
-        sb->s_magic = d_sb->s_magic;
-	sb->s_blocksize = d_sb->s_blocksize;
+    sb->s_magic = kv_sb->s_magic;
+	sb->s_blocksize = kv_sb->s_blocksize;
 	sb->s_op = &kv_sb_ops;
-	sb->s_fs_info = d_sb;
+	sb->s_fs_info = kv_sb;
 	bforget(bh);
 
 	bh = sb_bread(sb, KV_ROOT_INODE_OFFSET);
@@ -147,6 +129,27 @@ release:
 // 		return ret;
 // 	}
 // 	return proc_setup_thread_self(s);
+// }
+
+void kvfs_kill_superblock(struct super_block *sb)
+{
+	printk(KERN_INFO "#: kvfs. Unmount succesful.\n");
+	kill_block_super(sb);
+    // generic unmount 함수이다.
+}
+
+// 일단 사용하지 않는 것 같아 주석 처리해 두었다.
+// void kvfs_save_sb(struct super_block *sb) {
+// 	struct buffer_head *bh;
+// 	struct kv_superblock *kv_sb = sb->s_fs_info;
+
+// 	bh = sb_bread(sb, KV_SUPER_OFFSET);
+// 	BUG_ON(!bh);
+
+// 	bh->b_data = (char *)kv_sb;
+// 	mark_buffer_dirty(bh);
+// 	sync_dirty_buffer(bh);
+// 	brelse(bh);
 // }
 
 // 다음 함수의 필요성을 모르겠다.
