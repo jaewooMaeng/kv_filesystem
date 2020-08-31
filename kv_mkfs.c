@@ -270,6 +270,7 @@ int write_lostfound_inode(int fd)
 		.name = {0},
 	};
 	syncfs(fd);
+    // buffer에 있는 정보들을 해당 filesystem에 쓰는 작업이 sync -> syncfs는 그 중 해당 fd 관련된 내용만
 
 	uint32_t off = (KV_ROOT_INODE_OFFSET + 1) * KV_DEFAULT_BSIZE + 2 * sizeof(laf_dentry);
 	memcpy(laf_dentry.name, laf, sizeof(laf) / sizeof(char));

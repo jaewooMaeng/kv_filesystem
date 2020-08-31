@@ -12,7 +12,7 @@ obj-m += $(TARGET).o
 kfs-objs := kvfs.o super.o inode.o dir.o file.o
 
 default:
-	make -C $(KDIR) SUBDIRS=$(shell pwd) modules
+	make -C $(KDIR) SUBDIRS=$(PWD) modules
 
 clean:
-	make -C $(KDIR) SUBDIRS=$(shell pwd) clean
+	make -C $(KDIR) SUBDIRS=$(PWD) clean
