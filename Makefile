@@ -7,11 +7,15 @@ PWD := $(shell pwd)
 # To implement some macros declaration after satement is required
 ccflags-y := -std=gnu99 -Wno-declaration-after-statement
 
-obj-m += $(TARGET).o
+obj-m := kfs.o
 
-kfs-objs := kvfs.o super.o inode.o dir.o file.o
+kfs-objs += kvfs.o
+kfs-objs += super.o
+kfs-objs += inode.o
+kfs-objs += dir.o
+kfs-objs += file.o
 
-default:
+all:
 	make -C $(KDIR) SUBDIRS=$(PWD) modules
 
 clean:
