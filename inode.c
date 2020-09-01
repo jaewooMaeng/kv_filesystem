@@ -12,8 +12,11 @@ _ix < KV_INODE_TSIZE;							\
 	while (++blk < e)
 // 블록들을 훑으며 한번식 지나가는 define이다.
 
+// declarations
 struct inode *kv_new_inode(struct inode *dir, struct dentry *dentry, umode_t mode);
 int kv_add_ondir(struct inode *inode, struct inode *dir, struct dentry *dentry, umode_t mode);
+int kv_add_dir_record(struct super_block *sb, struct inode *dir, struct dentry *dentry, struct inode *inode);
+struct kv_inode *kv_iget(struct super_block *sb, ino_t ino);
 
 void kv_destroy_inode(struct inode *inode) {
 	struct kv_inode *kvi = inode->i_private;
@@ -132,7 +135,7 @@ struct kv_inode *cache_get_inode(void)
 	struct kv_inode *kvi;
 
 	kvi = kmem_cache_alloc(kv_inode_cache, GFP_KERNEL);
-	printk(KERN_INFO "#: kvfs cache_get_inode : di=%p\n", di);
+	printk(KERN_INFO "#: kvfs cache_get_inode : di=%p\n", kvi);
 
 	return kvi;
 }
