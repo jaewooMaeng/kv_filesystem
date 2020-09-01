@@ -2,6 +2,9 @@
 
 #include "hkv.h"
 
+// declaration
+ssize_t kv_get_loffset(struct kv_inode *kvi, loff_t off);
+
 ssize_t kv_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct super_block *sb;
@@ -38,7 +41,7 @@ ssize_t kv_read(struct kiocb *iocb, struct iov_iter *to)
 		return 0;
 	}
 
-	buffer = (char *)bh->b_data + (off % DM_DEFAULT_BSIZE);
+	buffer = (char *)bh->b_data + (off % KV_DEFAULT_BSIZE);
 	nbytes = min((size_t)(kvinode->i_size - off), count);
     // 나름 우선 해석을 하자면 nbytes는 거기까지 읽는다는 것 같다.
 
@@ -64,10 +67,10 @@ ssize_t kv_get_loffset(struct kv_inode *kvi, loff_t off)
 	loff_t add = 0;
 	int i = 0;
 
-	if (off > DM_DEFAULT_BSIZE)
-		add += DM_DEFAULT_BSIZE % off;
+	if (off > KV_DEFAULT_BSIZE)
+		add += KV_DEFAULT_BSIZE % off;
 
-	for (i = 0; i < DM_INODE_TSIZE; ++i) {
+	for (i = 0; i < KV_INODE_TSIZE; ++i) {
 		if (kvi->i_addrb[i] + off > kvi->i_addre[i]) {
             // 이런 경우가 발생할 수 있는 것인가?
 			off -= (kvi->i_addre[i] - kvi->i_addrb[i]);
@@ -134,7 +137,7 @@ ssize_t kv_write(struct kiocb *iocb, struct iov_iter *from)
 	    return 0;
 	}
 	
-	buffer = (char *)bh->b_data + (off % DM_DEFAULT_BSIZE);
+	buffer = (char *)bh->b_data + (off % KV_DEFAULT_BSIZE);
 	if (copy_from_user(buffer, buf, count)) {
         // buf의 내용을 buffer에 복사
 	    brelse(bh);
