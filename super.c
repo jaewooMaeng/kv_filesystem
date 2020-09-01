@@ -13,6 +13,24 @@
 
 #include "hkv.h"
 
+static int kvfs_fill_super(struct super_block *sb, void *data, int silent);
+
+struct dentry *kvfs_mount(struct file_system_type *fs_type, int flags,
+                const char *dev_name, void *data)
+{
+	struct dentry *ret;
+	ret = mount_bdev(fs_type, flags, dev_name, data, kvfs_fill_super);
+    // mount_bdev는 block dev에 대한 generic한 mount 함수
+	printk(KERN_INFO "#: Mounting kvfs! \n");
+
+	if (IS_ERR(ret))
+		printk(KERN_ERR "Error mounting kvfs.\n");
+	else
+		printk(KERN_INFO "kvfs is succesfully mounted on: %s\n", dev_name);
+
+	return ret;
+}
+
 static int kvfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	// super_block을 채우고, root_inode 또한 채워둔다.
@@ -63,22 +81,6 @@ static int kvfs_fill_super(struct super_block *sb, void *data, int silent)
 
 release:
 	brelse(bh);
-	return ret;
-}
-
-struct dentry *kvfs_mount(struct file_system_type *fs_type, int flags,
-                const char *dev_name, void *data)
-{
-	struct dentry *ret;
-	ret = mount_bdev(fs_type, flags, dev_name, data, kvfs_fill_super);
-    // mount_bdev는 block dev에 대한 generic한 mount 함수
-	printk(KERN_INFO "#: Mounting kvfs! \n");
-
-	if (IS_ERR(ret))
-		printk(KERN_ERR "Error mounting kvfs.\n");
-	else
-		printk(KERN_INFO "kvfs is succesfully mounted on: %s\n", dev_name);
-
 	return ret;
 }
 

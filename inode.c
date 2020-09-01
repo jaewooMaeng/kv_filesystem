@@ -12,6 +12,9 @@ _ix < KV_INODE_TSIZE;							\
 	while (++blk < e)
 // 블록들을 훑으며 한번식 지나가는 define이다.
 
+struct inode *kv_new_inode(struct inode *dir, struct dentry *dentry, umode_t mode);
+int kv_add_ondir(struct inode *inode, struct inode *dir, struct dentry *dentry, umode_t mode);
+
 void kv_destroy_inode(struct inode *inode) {
 	struct kv_inode *kvi = inode->i_private;
     // 해당 inode를 가지고 와서 초기화된 inode로 바꾸어주는 것 같다.? x
