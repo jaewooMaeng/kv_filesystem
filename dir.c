@@ -17,7 +17,7 @@ int kv_readdir(struct file *filp, struct dir_context *ctx)
 	WARN_ON(!S_ISDIR(kvinode->i_mode));
 
 	/* For each extends from file */
-	for (i = 0; i < DM_INODE_TSIZE; ++i) {
+	for (i = 0; i < KV_INODE_TSIZE; ++i) {
 		unsigned int b = kvinode->i_addrb[i] , e = kvinode->i_addre[i];
 		unsigned int blk = b;
 		while (blk < e) {
