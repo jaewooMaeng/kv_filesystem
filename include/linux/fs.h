@@ -46,3 +46,9 @@ struct file_operations {
     ssize_t (*kv_get) (struct file *, char __user *, int, char __user *, int, loff_t *);
     ssize_t (*kv_put) (struct file *, const char __user *, int, const char __user *, int, loff_t *);
 } __randomize_layout;
+
+extern ssize_t __vfs_kv_get(struct file *, char __user *, int , char __user *, int , loff_t *);
+extern ssize_t vfs_kv_get(struct file *, char __user *, int , char __user *, int , loff_t *);
+extern ssize_t __vfs_kv_put(struct file *, const char __user *, int , const char __user *, int , loff_t *);
+extern ssize_t vfs_kv_put(struct file *, const char __user *, int , const char __user *, int , loff_t *);
+

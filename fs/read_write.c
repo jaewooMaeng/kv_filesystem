@@ -27,6 +27,69 @@
 	새로운 파일을 만드는 것보단,
 	read_wrtie에 구현되어있는 함수들을 사용할 수 있으니 read_write에 아래의 내용 추가
 */
+ssize_t __vfs_kv_get(struct file *file, char __user *key, int keylen, char __user *getval, int vallen, loff_t *pos)
+{
+	// TODO
+	// filesystem layer 등록하고나면 다음 부분 활성화
+	/*
+		if (file->f_op->kv_put)
+			return file->f_op->kv_get(file, key, keylen, putval, vallen, pos);
+		else
+			return -EINVAL;
+	*/
+	printk(KERN_INFO "get syscall called\nkey: %s, value: %s\n", key, getval);
+	return 0;
+}
+
+ssize_t vfs_kv_get(struct file *file, char __user *key, int keylen, char __user *getval, int vallen, loff_t *pos)
+{
+	ssize_t ret;
+	ret = __vfs_kv_get(file, key, keylen, getval, vallen, pos);
+	return ret;
+}
+
+ssize_t __vfs_kv_put(struct file *file, const char __user *key, int keylen, const char __user *putval, int vallen, loff_t *pos)
+{
+	// TODO
+	// filesystem layer 등록하고나면 다음 부분 활성화
+	/*
+		if (file->f_op->kv_put)
+			return file->f_op->kv_put(file, key, keylen, putval, vallen, pos);
+		else
+			return -EINVAL;
+	*/
+	printk(KERN_INFO "put syscall called\nkey: %s, value: %s\n", key, putval);
+	return 0;
+}
+
+ssize_t vfs_kv_put(struct file *file, const char __user *key, int keylen, const char __user *putval, int vallen, loff_t *pos)
+{
+	ssize_t ret;
+
+	// if (!(file->f_mode & FMODE_WRITE))
+	// 	return -EBADF;
+	// if (!(file->f_mode & FMODE_CAN_WRITE))
+	// 	return -EINVAL;
+	// if (unlikely(!access_ok(VERIFY_READ, buf, count)))
+	// 	return -EFAULT;
+
+	// ret = rw_verify_area(WRITE, file, pos, count);
+	// if (!ret) {
+	// 	if (count > MAX_RW_COUNT)
+	// 		count =  MAX_RW_COUNT;
+	// 	file_start_write(file);
+	ret = __vfs_kv_put(file, key, keylen, putval, vallen, pos);
+	// 	if (ret > 0) {
+	// 		fsnotify_modify(file);
+	// 		add_wchar(current, ret);
+	// 	}
+	// 	inc_syscw(current);
+	// 	file_end_write(file);
+	// }
+
+	return ret;
+}
+
 
 SYSCALL_DEFINE6(kv_get, unsigned int, fd, char __user *, key, int, keylen, char __user *, getval, int, vallen, unsigned long, flags)
 {
@@ -98,67 +161,4 @@ SYSCALL_DEFINE6(kv_put, unsigned int, fd, const char __user *, key, int, keylen,
 		*/
 	}
 	return ret;
-}
-
-ssize_t vfs_kv_get(struct file *file, char __user *key, int keylen, char __user *getval, int vallen, loff_t *pos)
-{
-	ssize_t ret;
-	ret = __vfs_kv_get(file, key, keylen, getval, vallen, pos);
-	return ret;
-}
-
-ssize_t __vfs_kv_get(struct file *file, char __user *key, int keylen, char __user *getval, int vallen, loff_t *pos)
-{
-	// TODO
-	// filesystem layer 등록하고나면 다음 부분 활성화
-	/*
-		if (file->f_op->kv_put)
-			return file->f_op->kv_get(file, key, keylen, putval, vallen, pos);
-		else
-			return -EINVAL;
-	*/
-	printk(KERN_INFO "get syscall called\nkey: %s, value: %s\n", key, value);
-	return 0;
-}
-
-ssize_t vfs_kv_put(struct file *file, const char __user *key, int keylen, const char __user *putval, int vallen, loff_t *pos)
-{
-	ssize_t ret;
-
-	// if (!(file->f_mode & FMODE_WRITE))
-	// 	return -EBADF;
-	// if (!(file->f_mode & FMODE_CAN_WRITE))
-	// 	return -EINVAL;
-	// if (unlikely(!access_ok(VERIFY_READ, buf, count)))
-	// 	return -EFAULT;
-
-	// ret = rw_verify_area(WRITE, file, pos, count);
-	// if (!ret) {
-	// 	if (count > MAX_RW_COUNT)
-	// 		count =  MAX_RW_COUNT;
-	// 	file_start_write(file);
-	ret = __vfs_kv_put(file, key, keylen, putval, vallen, pos);
-	// 	if (ret > 0) {
-	// 		fsnotify_modify(file);
-	// 		add_wchar(current, ret);
-	// 	}
-	// 	inc_syscw(current);
-	// 	file_end_write(file);
-	// }
-
-	return ret;
-}
-
-ssize_t __vfs_kv_put(struct file *file, const char __user *key, int keylen, const char __user *putval, int vallen, loff_t *pos)
-{
-	// TODO
-	// filesystem layer 등록하고나면 다음 부분 활성화
-	/*
-		if (file->f_op->kv_put)
-			return file->f_op->kv_put(file, key, keylen, putval, vallen, pos);
-		else
-			return -EINVAL;
-	*/
-	printk(KERN_INFO "put syscall called\nkey: %s, value: %s\n", key, value);
-	return 0;
 }
