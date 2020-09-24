@@ -42,6 +42,11 @@ void kvfs_put(int kvfs_handle, char *key, int key_len, char *value, int value_le
 		ret = syscall(__NR_put, fd, key, keylen, val, vallen, flag);
 		f_op->put 구현도 필요 (syscall에서 이것을 부를 것이다)
 	*/
+	/*
+		우선 printk로 key, value가 전달되는 것 확인 - filesystem layer 완성되면 f_op과 연결
+	*/
+	int ret;
+	ret = syscall(549, kvfs_handle, key, key_len, value, value_len, NULL);
 	char prev_key[20];
 	char prev_value[80];
 	// printf("entry count: %d\n", kvi.entry_count);
@@ -84,6 +89,11 @@ void kvfs_get(int kvfs_handle, char *key, int key_len, char *value, int value_le
 		ret = syscall(__NR_get, fd, key, keylen, val, vallen, flag);
 		f_op->get 구현도 필요 (syscall에서 이것을 부를 것이다)
 	*/
+	/*
+		우선 printk로 key, value가 전달되는 것 확인 - filesystem layer 완성되면 f_op과 연결
+	*/
+	int ret;
+	ret = syscall(548, kvfs_handle, key, key_len, value, value_len, NULL);
 	char prev_key[20];
 	char prev_value[80];
 	lseek(kvfs_handle, sizeof(kv_inode_t), SEEK_SET);
